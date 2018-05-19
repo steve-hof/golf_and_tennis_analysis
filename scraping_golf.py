@@ -1,32 +1,61 @@
 #!/usr/bin/env python3
 
 """
-A script to scrape golf statistics for STATS 498
+A script to scrape golf statistics for the Masters Tournament
 
 by Steve Hof May 18, 2018
 """
 
+import sys
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QUrl
+from PyQt5.QtWebEngineWidgets import QWebEnginePage
 import requests
 from bs4 import BeautifulSoup
 
 
-url = "https://www.pgatour.com/tournaments/masters-tournament/field.html"
-response = requests.get(url)
-soup = BeautifulSoup(response.content, 'html.parser')
-body = soup.body
-div = body.find('div', class_="wrap alternative-font overlay-default")
-container = div.find('div', class_="container")
-page_container = container.find('div', class_="page-container")
-parsys = page_container.find('div', class_="parsys mainParsys")
-field_section = parsys.find('div', class_="field section")
-field_body = field_section.find('div', class_="field-body")
-ul = field_body.find('ul', class_="ul-inline field-body-cols")
-li = ul.find('li', class_="column-left")
-field_module = li.find('div', class_="field-module")
-field_container = field_module.find('div', class_="field-container")
-inside_field_container = list(field_container.descendants)
-players_list = field_container.find('div', class_="players-list players-list-main clearfix clear")
-fill = 12
+# Use PyQt5 module to pretend we're a browser
+# That way we can see the javascript code we want to see
+class Client(QWebEnginePage):
+    def __init__(self, url):
+        self.app = QApplication(sys.argv)
+        QWebEnginePage.__init__(self)
+        self.html = ''
+        self.loadFinished.connect(self._on_load_finished)
+        self.load(QUrl(url))
+        self.app.exec_()
+
+    def _on_load_finished(self):
+        self.html = self.toHtml(self.Callable)
+        print('Load finished')
+
+    def Callable(self, html_str):
+        self.html = html_str
+        self.app.quit()
+
+
+def main():
+    url = "https://www.pgatour.com/tournaments/masters-tournament/field.html"
+    client_response = Client(url)
+    soup = BeautifulSoup(client_response.html, 'html.parser')
+
+    # Work our way through the web of nested elements
+    body = soup.body
+    div = body.find('div', class_="wrap alternative-font overlay-default")
+    container = div.find('div', class_="container")
+    page_container = container.find('div', class_="page-container")
+    parsys = page_container.find('div', class_="parsys mainParsys")
+    field_section = parsys.find('div', class_="field section")
+    field_body = field_section.find('div', class_="field-body")
+    ul = field_body.find('ul', class_="ul-inline field-body-cols")
+    li = ul.find('li', class_="column-left")
+    field_module = li.find('div', class_="field-module")
+    field_container = field_module.find('div', class_="field-container")
+    players_list = field_container.find('div', class_="players-list players-list-main clearfix clear")
+    player_img_list = field_container.find_all('img', class_="player-img")
+    test = player_img_list[0]
+    id = test['id']
+    fill = 12
 
 
 # def scrape_money_leaders_year(url):
@@ -74,7 +103,5 @@ fill = 12
 #
 #
 #
-# if __name__ == '__main__':
-#     main()
-
-
+if __name__ == '__main__':
+    main()
