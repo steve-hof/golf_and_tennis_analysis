@@ -7,6 +7,7 @@ by Steve Hof May 18, 2018
 """
 
 import sys
+import re
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEnginePage
@@ -34,9 +35,8 @@ class Client(QWebEnginePage):
         self.app.quit()
 
 
-def main():
-    url = "https://www.pgatour.com/tournaments/masters-tournament/field.html"
-    client_response = Client(url)
+def get_player_urls(tournament_url):
+    client_response = Client(tournament_url)
     soup = BeautifulSoup(client_response.html, 'html.parser')
 
     # Work our way through the web of nested elements
@@ -51,57 +51,49 @@ def main():
     li = ul.find('li', class_="column-left")
     field_module = li.find('div', class_="field-module")
     field_container = field_module.find('div', class_="field-container")
-    players_list = field_container.find('div', class_="players-list players-list-main clearfix clear")
+    # players_list = field_container.find('div', class_="players-list players-list-main clearfix clear")
+
+    # list of <img> tags contain all player ids
     player_img_list = field_container.find_all('img', class_="player-img")
-    test = player_img_list[0]
-    id = test['id']
-    fill = 12
+
+    # go through each one and extract player-ids
+    id_list = []
+    for player in player_img_list:
+        player_id = player['id']
+        match = re.search('player-(\d+)', player_id)
+        if match:
+            id_list.append(match.group(1))
+        else:
+            print("no player id")
+
+    # go through and extract player names
+    player_name_list = []
+    player_span_list = field_container.find_all('span', class_="player-name")
+    for name in player_span_list:
+        p_name = str(name.string).lower()
+
+        switched = '-'.join(reversed(p_name.split(', ')))
+        player_name_list.append(switched)
+
+    # Dictionary mapping player names to id's will probably come in handy
+    player_id_dict = dict(zip(player_name_list, id_list))
+
+    # Create list of urls for all players in tournament
+    url_list = []
+    base_url = "https://www.pgatour.com/players/player."
+    for name, id in player_id_dict.items():
+        player_string = "" + id + "." + name + ".html"
+        url = base_url + player_string
+        url_list.append(url)
+
+    return url_list
 
 
-# def scrape_money_leaders_year(url):
-#     # Downloads the money winners by year for the PGA tour
-#     # using Requests
-#     response = requests.get(url)
-#     soup = BeautifulSoup(response.content, 'lxml')
-#     money = []
-#     for item in soup.findAll("td", "hidden-small")[4::3]:
-#         money.append(item.text)
-#     return money
+def main():
+    masters_url = "https://www.pgatour.com/tournaments/masters-tournament/field.html"
+    masters_players_urls = get_player_urls(masters_url)
 
 
-# def get_cpi():
-#     url = "http://www.minneapolisfed.org/community_education/teacher/calc/hist1913.cfm"
-#     response = requests.get(url)
-#     soup = BeautifulSoup(response.content, 'lxml')
-#     info = []
-#     for e in soup.findAll('td')[203:]:
-#         info.append(e.text)
-#     del info[2::3]
-#     pairs = dict(zip(info[::2], info[1::2]))
-#     return pairs
-#
-#
-# def write_csv(money_winners_list, year):
-#     Money_list = open("money_list_by_year.csv", 'ab')
-#     money_winners_list.insert(0, year)
-#     writer = csv.writer(Money_list, delimiter=',')
-#     writer.writerow(money_winners_list)
-#     Money_list.close()
 
-
-# def main():
-#     urls = get_links()
-#     # for url_list in urls:
-#     #     money_list = scrape_money_leaders_year(url_list[0])
-#     #     corrected_ml = [int(i.replace(',', '')) * (229.6 / float(cpi_dict[str(url_list[1])])) for i in money_list]
-#     # transpose_data()
-#
-#
-# def transpose_data():
-#     a = zip(*csv.reader(open("money_list_by_year.csv", "rb")))
-#     csv.writer(open("money_list_by_year.csv", "wb")).writerows(a)
-#
-#
-#
 if __name__ == '__main__':
     main()
