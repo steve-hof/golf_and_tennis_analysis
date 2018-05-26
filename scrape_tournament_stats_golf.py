@@ -13,6 +13,8 @@ from PyQt5.QtCore import QUrl
 from PyQt5.QtWebEngineWidgets import QWebEnginePage
 import requests
 from bs4 import BeautifulSoup
+import urllib.request
+import json
 
 
 # Use PyQt5 module to pretend we're a browser
@@ -35,44 +37,7 @@ class Client(QWebEnginePage):
         self.app.quit()
 
 
-def get_tourney_stats(player_url):
-    client_response = Client(player_url)
-    soup = BeautifulSoup(client_response.html, 'html.parser')
-
-    # Work our way through the web of nested elements
-    body = soup.body
-    wrap = body.find('div', class_="wrap")
-    container = wrap.find('div', class_="container")
-    clearfix_module_player = container.find('div', class_="clearfix module-player-navigation")
-    tabbable = clearfix_module_player.find('div', class_="tabbable")
-    tab_content = tabbable.find('div', class_="tab-content tab-content-players-overview")
-    player_performance = tab_content.find('div', class_="performance player-performance")
-    performance_section = player_performance.find('section', id="performance")
-    tabbable_performance_section = performance_section.find('div', class_="tabbable player-section-performance")
-    tab_content = tabbable_performance_section.find('div', class_="tab-content")
-    tab_pane_active = tab_content.find('div', id="performanceTournament")
-    player_perform_module = tab_pane_active.find('div', class_="player-performance-tournament-"
-                                                               "module module hide-tour-year-filter")
-    tour_filter_block = player_perform_module.find('div', class_="tour-year-filter-block")
-
-    # trigger some necessary javascript
-    tour_filter_container = tour_filter_block.find('div', class_="tour-year-filter-container")
-    performance_head_clearfix = tour_filter_container.find('div', class_="performance-head clearfix")
-
-    render = tour_filter_block.find('div', class_="render")
-
-    # see = render.descendents
-    # data_react = render.find_all('div')
-    # career_table = data_react.find_all('div')[1]
-    fill = 12
-
-
-def main():
-    # pgatour.com page scraping
-    url = "https://www.pgatour.com/players/player.28237.rory-mcilroy.html"
-    # pga_tour_response = Client(url)
-    # tournament_stats = get_tourney_stats(url)
-
+def save_basic_tourney_stats():
     # golfstats.com page scraping (way easier)
     years = ['2011', '2010']
     base_url = "https://www.golfstats.com/search/?yr="
@@ -88,9 +53,65 @@ def main():
         df.drop(['empty1', 'empty2', 'empty3'], axis=1, inplace=True)
         save_path = 'masters_results_' + year + '.csv'
         df.to_csv(save_path, index=False)
-    fill = 2
+
+
+def get_detailed_tourney_stats(player_url):
+    client_response = Client(player_url)
+    soup = BeautifulSoup(client_response.html, 'html.parser')
+
+    # Work our way through the web of nested elements
+    body = soup.body
+    wrap = body.find('div', class_="wrap")
+    container = wrap.find('div', class_="container")
+    clearfix_module_player = container.find('div', class_="clearfix module-player-navigation")
+    tabbable = clearfix_module_player.find('div', class_="tabbable")
+    tab_content = tabbable.find('div', class_="tab-content tab-content-players-overview")
+    player_performance = tab_content.find('div', class_="performance player-performance")
+    performance_section = player_performance.find('section', id="performance")
+    tabbable_performance_section = performance_section.find('div', class_="tabbable player-section-performance")
+
+    tab_content = tabbable_performance_section.find('div', class_="tab-content")
+    tab_pane_active = tab_content.find('div', id="performanceTournament")
+    # tab_pane_active above---- might be an API!!!!
+    data = {}
+    rory_json_url = "https://statdata.pgatour.com/players/28237/2018stat.json"
+    rory_career_tournaments_url = "https://statdata.pgatour.com/players/28237/r_recap.json"
+    with urllib.request.urlopen(rory_career_tournaments_url) as rory_url:
+        data = json.loads(rory_url.read().decode())
+        print(json.dumps(data, indent=4))
+        with open('rory_data.txt', 'w') as outfile:
+            json.dump(data, outfile)
+        fill = 14
+
+    print(data.keys())
+    fill= 12
+
+
+    # player_perform_module = tab_pane_active.find('div', class_="player-performance-tournament-"
+    #                                                            "module module hide-tour-year-filter")
+    # just_testing_player_section_content = player_perform_module.find('div', class_="player-section-content load-mode")
+    # tour_filter_block = player_perform_module.find('div', class_="tour-year-filter-block")
+    #
+    # # trigger some necessary javascript
+    # tour_filter_container = tour_filter_block.find('div', class_="tour-year-filter-container")
+    # performance_head_clearfix = tour_filter_container.find('div', class_="performance-head clearfix")
+    #
+    # render = tour_filter_block.find('div', class_="render")
+    # player_section_content = render.find('div', class_="player-section-content load-mode")
+    # player_loader = player_section_content.find('div', class_="player-loader")
+    # blah = render.find('div', "data-reactroot")
+    fill = 12
+    return 0
+
+
+def main():
+    # pgatour.com page scraping
+    url = "https://www.pgatour.com/players/player.28237.rory-mcilroy.html"
+    tournament_stats = get_detailed_tourney_stats(url)
+    # save_basic_tourney_stats()
+
+    # fill = 2
 
 
 if __name__ == '__main__':
     main()
-

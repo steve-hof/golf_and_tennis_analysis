@@ -91,7 +91,9 @@ def get_player_urls(tournament_url):
 
 def main():
     masters_url = "https://www.pgatour.com/tournaments/masters-tournament/field.html"
+    pebble_url = "https://www.pgatour.com/tournaments/at-t-pebble-beach-pro-am/field.html"
     masters_players_urls = get_player_urls(masters_url)
+    pebble_players_urls = get_player_urls(pebble_url)
 
 
 
