@@ -64,7 +64,7 @@ def build_player_df(json_url, player_id, player_name):
     with urllib.request.urlopen(json_url) as url:
         data = json.loads(url.read().decode())
 
-    # rounds_played = len(data['p']['rnds'])
+    rounds_played = len(data['p']['rnds'])
     r1_dict = {}
     r2_dict = {}
     r3_dict = {}
@@ -77,25 +77,27 @@ def build_player_df(json_url, player_id, player_name):
     for a_round in data['p']['rnds']:
         total_rounds += 1
         round_num = a_round['n']
-        print(f"Round {round_num}")
+        # print(f"Round {round_num}")
         for hole in a_round['holes']:
-            print(f"Hole {hole['n']}:")
+            # print(f"Hole {hole['n']}:")
             score = hole['sc']
-            print(f"Score = {score}")
+            # print(f"Score = {score}")
             player_scores.append(score)
+            DUPLICATE = False
             for shot in hole['shots']:
-                if shot['n'] == '1':
+                if shot['n'] == '1' and DUPLICATE == False:
+                    DUPLICATE = True
                     drive_dist = shot['dist']
                     player_drive_distance.append(drive_dist)
-                    print(f"drive distance: {drive_dist}")
+                    # print(f"drive distance: {drive_dist}")
                 elif shot['n'] == score:
                     if not shot['putt']:
                         putts = '0'
                     else:
                         putts = shot['putt']
                     player_num_putts.append(putts)
-                    print(f"number of putts: {putts}")
-            print()
+            #         print(f"number of putts: {putts}")
+            # print()
         if round_num == '1':
             r1_dict['scores'] = player_scores
             r1_dict['drive_dist'] = player_drive_distance
@@ -120,8 +122,8 @@ def build_player_df(json_url, player_id, player_name):
         player_drive_distance = []
         player_num_putts = []
 
-        print()
-        print()
+        # print()
+        print(f"scraping {player_name}")
 
     hole_columns = list(range(1, 19))
     player_name_index = [player_name, player_name, player_name]
@@ -154,22 +156,42 @@ def build_player_df(json_url, player_id, player_name):
             score_list = list(r.values())
             df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
 
-    df = df_list[0].append(df_list[1])
+    df = df_list[0]
+    for i in range(1, rounds_played):
+        df.append(df_list[i])
 
+    time.sleep(.5)
     return df
 
 
 def main():
     us_open_2017_json_url = "https://statdata.pgatour.com/r/026/2017/setup.json"
     base_url_begin = "https://statdata.pgatour.com/r/"
-    player_id = '28237'
-    player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
-                      player_id + '.json'
+    # player_id = '28237'
 
     tournament_player_ids_dict, course_df = get_player_field_ids(us_open_2017_json_url)
-    player_name = tournament_player_ids_dict[player_id]
-    player_df = build_player_df(player_json_url, player_id, player_name)
-    player_df.to_csv('rory.csv')
+
+    for i, p_id in enumerate(tournament_player_ids_dict.keys()):
+        if i == 0:
+            player_name = tournament_player_ids_dict[p_id]
+            player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
+                              p_id + '.json'
+            base_df = build_player_df(player_json_url, p_id, player_name)
+            fill = 2
+        else:
+            player_name = tournament_player_ids_dict[p_id]
+            player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
+                              p_id + '.json'
+            new_df = build_player_df(player_json_url, p_id, player_name)
+            base_df.concat(new_df)
+            #HAVING ISSUES CONCATENATING
+            fill = 12
+        # base_df.to_csv('US_Open_player_scores')
+# with open('my_csv.csv', 'a') as f:
+#     df.to_csv(f, header=False)
+    # player_name = tournament_player_ids_dict[player_id]
+    # player_df = build_player_df(player_json_url, player_id, player_name)
+    # player_df.to_csv('rory.csv')
     print("nothing yet")
 
 
