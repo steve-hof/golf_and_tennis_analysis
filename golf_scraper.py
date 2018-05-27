@@ -6,7 +6,6 @@ import urllib.request
 import json
 import time
 
-
 tournament_id = '026'
 year = '2017'
 
@@ -60,12 +59,12 @@ def get_player_field_ids(json_url):
     return player_id_dict, course_info_df
 
 
-def build_player_df(json_url, player_id):
+def build_player_df(json_url, player_id, player_name):
     data = {}
     with urllib.request.urlopen(json_url) as url:
         data = json.loads(url.read().decode())
 
-    rounds_played = len(data['p']['rnds'])
+    # rounds_played = len(data['p']['rnds'])
     r1_dict = {}
     r2_dict = {}
     r3_dict = {}
@@ -124,20 +123,33 @@ def build_player_df(json_url, player_id):
         print()
         print()
 
-    hole_columns = list(range(1,19))
+    hole_columns = list(range(1, 19))
+    player_name_index = [player_name, player_name, player_name]
     rounds_1 = ['round_1', 'round_1', 'round_1']
     rounds_2 = ['round_2', 'round_2', 'round_2']
+    rounds_3 = ['round_3', 'round_3', 'round_3']
+    rounds_4 = ['round_4', 'round_4', 'round_4']
     desc = ['scores', 'drive_dist', 'putts']
 
     df_list = []
     for i, r in enumerate(full_player_info_list):
         if i + 1 == 1:
-            hier_index = list(zip(rounds_1, desc))
+            hier_index = list(zip(player_name_index, rounds_1, desc))
             hier_index = pd.MultiIndex.from_tuples(hier_index)
             score_list = list(r.values())
             df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
         if i + 1 == 2:
-            hier_index = list(zip(rounds_2, desc))
+            hier_index = list(zip(player_name_index, rounds_2, desc))
+            hier_index = pd.MultiIndex.from_tuples(hier_index)
+            score_list = list(r.values())
+            df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
+        if i + 1 == 3:
+            hier_index = list(zip(player_name_index, rounds_3, desc))
+            hier_index = pd.MultiIndex.from_tuples(hier_index)
+            score_list = list(r.values())
+            df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
+        if i + 1 == 4:
+            hier_index = list(zip(player_name_index, rounds_4, desc))
             hier_index = pd.MultiIndex.from_tuples(hier_index)
             score_list = list(r.values())
             df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
@@ -154,9 +166,9 @@ def main():
     player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
                       player_id + '.json'
 
-    tournament_player_ids, course_df = get_player_field_ids(us_open_2017_json_url)
-
-    player_df = build_player_df(player_json_url, player_id)
+    tournament_player_ids_dict, course_df = get_player_field_ids(us_open_2017_json_url)
+    player_name = tournament_player_ids_dict[player_id]
+    player_df = build_player_df(player_json_url, player_id, player_name)
     player_df.to_csv('rory.csv')
     print("nothing yet")
 
