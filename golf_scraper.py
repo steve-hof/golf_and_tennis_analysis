@@ -158,7 +158,7 @@ def build_player_df(json_url, player_id, player_name):
 
     df = df_list[0]
     for i in range(1, rounds_played):
-        df.append(df_list[i])
+        df = df.append(df_list[i])
 
     time.sleep(.5)
     return df
@@ -183,16 +183,18 @@ def main():
             player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
                               p_id + '.json'
             new_df = build_player_df(player_json_url, p_id, player_name)
-            base_df.concat(new_df)
+            base_df = base_df.append(new_df)
+
             #HAVING ISSUES CONCATENATING
             fill = 12
-        # base_df.to_csv('US_Open_player_scores')
+
+    base_df.to_csv('US_Open_player_scores')
 # with open('my_csv.csv', 'a') as f:
 #     df.to_csv(f, header=False)
-    # player_name = tournament_player_ids_dict[player_id]
-    # player_df = build_player_df(player_json_url, player_id, player_name)
-    # player_df.to_csv('rory.csv')
-    print("nothing yet")
+#     player_name = tournament_player_ids_dict[player_id]
+#     player_df = build_player_df(player_json_url, player_id, player_name)
+#     player_df.to_csv('rory.csv')
+#     print("nothing yet")
 
 
 if __name__ == '__main__':
