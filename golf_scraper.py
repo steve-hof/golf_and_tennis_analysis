@@ -85,7 +85,7 @@ def build_player_df(json_url, player_id, player_name):
             player_scores.append(score)
             DUPLICATE = False
             for shot in hole['shots']:
-                if shot['n'] == '1' and DUPLICATE == False:
+                if shot['n'] == '1' and DUPLICATE is False:
                     DUPLICATE = True
                     drive_dist = shot['dist']
                     player_drive_distance.append(drive_dist)
@@ -185,10 +185,12 @@ def main():
             new_df = build_player_df(player_json_url, p_id, player_name)
             base_df = base_df.append(new_df)
 
-            #HAVING ISSUES CONCATENATING
+            # HAVING ISSUES CONCATENATING
             fill = 12
 
     base_df.to_csv('US_Open_player_scores')
+
+
 # with open('my_csv.csv', 'a') as f:
 #     df.to_csv(f, header=False)
 #     player_name = tournament_player_ids_dict[player_id]

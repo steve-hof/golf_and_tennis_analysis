@@ -37,5 +37,6 @@ df = pd.DataFrame.from_dict(elo_dict)
 cols = ['rank', 'player', 'elo_score', 'pos_plus_min', 'elo_plus_min']
 df = df[cols]
 
+df.to_csv("data/current_data_files/aus_open_pre_elo.csv")
 print(df.to_string())
 fill = 12
