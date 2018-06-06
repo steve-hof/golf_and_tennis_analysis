@@ -6,8 +6,28 @@ import urllib.request
 import json
 import time
 
-tournament_id = '026'
+base_path = "data/current_data_files/"
+# tournament_id = '011' #(players)
+tournament_id = '026' #(US Open)
+# tournament_id = '014' #(Masters)
+
 year = '2017'
+
+players_champ_slug = "Players_Championship"
+us_open_slug = "US_Open"
+masters_slug = "Masters"
+
+save_slug = base_path + us_open_slug + "_" + year + ".csv"
+
+#fix element is stored as string
+def feet_to_yards(element):
+    if type(element) is str:
+        return element
+    elif type(element) is float and element > 100:
+        in_yards = element / 36
+        return round(in_yards, 1)
+    else:
+        return element
 
 
 # Build dataframe containing pars and yards for each hole
@@ -131,6 +151,7 @@ def build_player_df(json_url, player_id, player_name):
     rounds_2 = ['round_2', 'round_2', 'round_2']
     rounds_3 = ['round_3', 'round_3', 'round_3']
     rounds_4 = ['round_4', 'round_4', 'round_4']
+    rounds_5 = ['round_5', 'round_5', 'round_5']
     desc = ['scores', 'drive_dist', 'putts']
 
     df_list = []
@@ -157,7 +178,7 @@ def build_player_df(json_url, player_id, player_name):
             df_list.append(pd.DataFrame(score_list, index=hier_index, columns=hole_columns))
 
     df = df_list[0]
-    for i in range(1, rounds_played):
+    for i in range(1, min(4, rounds_played)):
         df = df.append(df_list[i])
 
     time.sleep(.5)
@@ -165,11 +186,9 @@ def build_player_df(json_url, player_id, player_name):
 
 
 def main():
-    us_open_2017_json_url = "https://statdata.pgatour.com/r/026/2017/setup.json"
     base_url_begin = "https://statdata.pgatour.com/r/"
-    # player_id = '28237'
-
-    tournament_player_ids_dict, course_df = get_player_field_ids(us_open_2017_json_url)
+    url = base_url_begin + tournament_id + '/' + year + '/setup.json'
+    tournament_player_ids_dict, course_df = get_player_field_ids(url)
 
     for i, p_id in enumerate(tournament_player_ids_dict.keys()):
         if i == 0:
@@ -185,12 +204,23 @@ def main():
             new_df = build_player_df(player_json_url, p_id, player_name)
             base_df = base_df.append(new_df)
 
-            # HAVING ISSUES CONCATENATING
-            fill = 12
+    base_df = base_df.applymap(feet_to_yards)
+    base_df.to_csv(save_slug)
 
-    base_df.to_csv('US_Open_player_scores')
+    final_df = pd.read_csv(save_slug)
+    # add totals column
+    hole_nums = list(range(1, 19))
+    sum_cols = [str(i) for i in hole_nums]
+    final_df['totals'] = final_df[sum_cols].sum(axis=1)
+    final_df['totals'] = final_df['totals'].map(lambda num: round(num, 1))
 
+    # base_df.to_csv('data/current_data_files/us_open_statistics_2017_'
+    #                  'submitted_june_6.csv')
+    final_df.columns = ['Player', 'Round', 'type', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+                       'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'Total']
+    final_df.to_csv(save_slug)
 
+    fill = 12
 # with open('my_csv.csv', 'a') as f:
 #     df.to_csv(f, header=False)
 #     player_name = tournament_player_ids_dict[player_id]
