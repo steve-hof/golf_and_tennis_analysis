@@ -19,6 +19,7 @@ masters_slug = "Masters"
 
 save_slug = base_path + us_open_slug + "_" + year + ".csv"
 
+
 #fix element is stored as string
 def feet_to_yards(element):
     if type(element) is str:

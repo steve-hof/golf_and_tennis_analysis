@@ -87,20 +87,6 @@ def get_detailed_tourney_stats(player_url):
     fill= 12
 
 
-    # player_perform_module = tab_pane_active.find('div', class_="player-performance-tournament-"
-    #                                                            "module module hide-tour-year-filter")
-    # just_testing_player_section_content = player_perform_module.find('div', class_="player-section-content load-mode")
-    # tour_filter_block = player_perform_module.find('div', class_="tour-year-filter-block")
-    #
-    # # trigger some necessary javascript
-    # tour_filter_container = tour_filter_block.find('div', class_="tour-year-filter-container")
-    # performance_head_clearfix = tour_filter_container.find('div', class_="performance-head clearfix")
-    #
-    # render = tour_filter_block.find('div', class_="render")
-    # player_section_content = render.find('div', class_="player-section-content load-mode")
-    # player_loader = player_section_content.find('div', class_="player-loader")
-    # blah = render.find('div', "data-reactroot")
-    fill = 12
     return 0
 
 
