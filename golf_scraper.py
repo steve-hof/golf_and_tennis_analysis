@@ -5,6 +5,7 @@ import requests
 import urllib.request
 import json
 import time
+import argparse
 
 base_path = "data/current_data_files/"
 # tournament_id = '011' #(players)
@@ -184,6 +185,7 @@ def build_player_df(json_url, player_id, player_name):
     return df
 
 
+def get_par_info()
 def main():
     base_url_begin = "https://statdata.pgatour.com/r/"
     url = base_url_begin + tournament_id + '/' + year + '/setup.json'
