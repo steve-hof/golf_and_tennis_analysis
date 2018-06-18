@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import linear_model
+from sklearn.linear_model import LogisticRegression
 from scipy.stats import logistic
 from matplotlib.ticker import NullFormatter
 from sklearn import linear_model
@@ -11,6 +11,7 @@ from scipy import stats
 import seaborn as sns
 import statsmodels.api as sm
 import collections
+import math
 
 
 def compare_elos(row):  # winner_elo, loser_elo):
@@ -20,31 +21,44 @@ def compare_elos(row):  # winner_elo, loser_elo):
     result = max(row['winner_elo'], row['loser_elo']) == row['winner_elo']
 
     last = (elo_diff, result)
-    return result
+    return last
 
 
 def plot_logit(source_list):
-    fig, ax = plt.subplots(1, 1)
     X, bool_y = zip(*source_list)
     X = np.asarray(X)
     X = X.reshape(-1, 1)
     y = [1 if x is True else 0 for x in bool_y]
     y = np.asarray(y)
 
-    clf = linear_model.LogisticRegression(C=1e2)  # C=1e5)
-    clf.fit(X, y)
-    plt.figure(1, figsize=(4, 3))
-    plt.clf()
-    plt.scatter(X, y, color='blue', zorder=20)
-    # plt.scatter(X, clf.predict_proba(X)[:, 1])
+    logit_no_int = LogisticRegression(C=1, fit_intercept=False)
+    logit_no_int.fit(X, y)
+    logit = LogisticRegression(C=1, fit_intercept=True)
+    logit.fit(X, y)
 
-    def model(x):
-        return 1 / (1 + np.exp(-x))
+    m_no_int = logit_no_int.coef_[0, 0]
+    m = logit.coef_[0, 0]
+    b = logit.intercept_
 
-    loss = model(X * clf.coef_ + clf.intercept_)
-    plt.plot(X, loss, color='red', linewidth=3)
+    fig = plt.figure()
+    ax = fig.add_axes([0.1, 0.1, .85, .85])
+    logit_curve_no_int = lambda x: 1/(1 + math.e**(-(m_no_int*x)))
+    logit_curve = lambda x: 1/(1 + math.e**(-(m*x+b)))
+    x_vals = np.linspace(0, 600, 100)
+    y_vals_no_int = logit_curve_no_int(x_vals)
+    y_vals = logit_curve(x_vals)
+
+    ax.plot(x_vals, y_vals_no_int, c='b', label='Intercept Removed')
+    ax.plot(x_vals, y_vals, c='r', label='With Intercept')
+
+    ax.scatter(X, y, c='black', s=2)
+    ax.set_xlabel("Difference in Elo Rating")
+    ax.set_ylabel("Probability of Higher Rank Winning")
+    ax.legend(loc=5)
+    # ax.axis('tight')
+    ax.set_title("Logistic Function with & without Intercept")
+    fig.savefig("../current_report_folder/figures/logistic_with_and_without_intercept.eps", format='eps', dpi=300)
     plt.show()
-    fill = 12
 
 
 def main():
@@ -52,23 +66,14 @@ def main():
 
     # drop unnamed columns
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-    df.fillna(value=0, inplace=True)
-
-    # give all un-ranked players and elo of one less than the lowest elo
-    min_winner_elo = np.min(df['winner_elo'].values[np.nonzero(df['winner_elo'].values)])
-    min_loser_elo = np.min(df['loser_elo'].values[np.nonzero(df['loser_elo'].values)])
-    min_elo = min(min_winner_elo, min_loser_elo)
-
-    df['winner_elo'] = df['winner_elo'].apply(lambda rank: min_elo - 1 if rank == 0 else rank)
-    df['loser_elo'] = df['loser_elo'].apply(lambda rank: min_elo - 1 if rank == 0 else rank)
-    df['elo_diff'] = df['winner_elo'] - df['loser_elo']
-
-    check = df['elo_diff'] > 0
-    num = collections.Counter(check)
+    df['winner_elo'] = df['winner_elo'].replace(0.00000, np.nan)
+    df['loser_elo'] = df['loser_elo'].replace(0.00000, np.nan)
+    df = df[np.isfinite(df['winner_elo'])]
+    df = df[np.isfinite(df['loser_elo'])]
     elo_tuples = df.apply(compare_elos, axis=1)
 
 
-    # plot_logit(elo_tuples)
+    plot_logit(elo_tuples)
     fill = 12
 
 

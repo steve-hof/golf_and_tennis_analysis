@@ -8,7 +8,7 @@ import time
 
 base_path = "data/current_data_files/"
 # tournament_id = '011' #(players)
-tournament_id = '026' #(US Open)
+tournament_id = '026'  # (US Open)
 # tournament_id = '014' #(Masters)
 
 year = '2017'
@@ -17,19 +17,18 @@ players_champ_slug = "Players_Championship"
 us_open_slug = "US_Open"
 masters_slug = "Masters"
 
-save_slug = base_path + us_open_slug + "_" + year + ".csv"
+csv_save_slug = base_path + us_open_slug + "_" + year + ".csv"
+pickle_save_slug = base_path + us_open_slug + "_" + year + "_pickle"
 
 
-#fix element is stored as string
-def feet_to_yards(element):
-    if type(element) is str:
-        return element
-    elif type(element) is float and element > 100:
-        in_yards = element / 36
-        return round(in_yards, 1)
-    else:
-        return element
-
+# # fix element is stored as string
+# def feet_to_yards(element):
+#     if type(element) is float and element > 100:
+#         in_yards = element / 36
+#         return round(in_yards, 1)
+#     else:
+#         return element
+#
 
 # Build dataframe containing pars and yards for each hole
 def get_tournament_info(json_data):
@@ -109,16 +108,15 @@ def build_player_df(json_url, player_id, player_name):
                 if shot['n'] == '1' and DUPLICATE is False:
                     DUPLICATE = True
                     drive_dist = shot['dist']
+                    drive_dist = str(float(drive_dist) / 36)
                     player_drive_distance.append(drive_dist)
-                    # print(f"drive distance: {drive_dist}")
                 elif shot['n'] == score:
                     if not shot['putt']:
                         putts = '0'
                     else:
                         putts = shot['putt']
                     player_num_putts.append(putts)
-            #         print(f"number of putts: {putts}")
-            # print()
+
         if round_num == '1':
             r1_dict['scores'] = player_scores
             r1_dict['drive_dist'] = player_drive_distance
@@ -197,7 +195,6 @@ def main():
             player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
                               p_id + '.json'
             base_df = build_player_df(player_json_url, p_id, player_name)
-            fill = 2
         else:
             player_name = tournament_player_ids_dict[p_id]
             player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
@@ -205,29 +202,42 @@ def main():
             new_df = build_player_df(player_json_url, p_id, player_name)
             base_df = base_df.append(new_df)
 
-    base_df = base_df.applymap(feet_to_yards)
-    base_df.to_csv(save_slug)
+    base_df.to_csv('working_file.csv')
+    base_df = pd.read_csv('working_file.csv')
+    cols = ['Player', 'Round', 'Type', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+            'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
+    base_df.columns = cols
 
-    final_df = pd.read_csv(save_slug)
-    # add totals column
-    hole_nums = list(range(1, 19))
-    sum_cols = [str(i) for i in hole_nums]
-    final_df['totals'] = final_df[sum_cols].sum(axis=1)
-    final_df['totals'] = final_df['totals'].map(lambda num: round(num, 1))
+    # base_df.to_csv(csv_save_slug)
+    base_df.to_pickle('working_pickle')
 
-    # base_df.to_csv('data/current_data_files/us_open_statistics_2017_'
-    #                  'submitted_june_6.csv')
-    final_df.columns = ['Player', 'Round', 'type', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
-                       'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'Total']
-    final_df.to_csv(save_slug)
+    base_df = pd.read_pickle('working_pickle')
 
-    fill = 12
-# with open('my_csv.csv', 'a') as f:
-#     df.to_csv(f, header=False)
-#     player_name = tournament_player_ids_dict[player_id]
-#     player_df = build_player_df(player_json_url, player_id, player_name)
-#     player_df.to_csv('rory.csv')
-#     print("nothing yet")
+    # add totals columns
+    final_df = base_df
+    all_holes = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+                 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
+    final_df['Total'] = final_df[all_holes].sum(axis=1)
+    final_df['Total'] = final_df['Total'].map(lambda num: round(num, 1))
+
+    front_nine = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9']
+    final_df['Out'] = final_df[front_nine].sum(axis=1)
+    final_df['Out'] = final_df['Out'].map(lambda num: round(num, 1))
+
+    back_nine = ['H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
+    final_df['In'] = final_df[back_nine].sum(axis=1)
+    final_df['In'] = final_df['In'].map(lambda num: round(num, 1))
+
+    # Reorder columns
+    cols = ['Player', 'Round', 'Type', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+            'Out', 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'In', 'Total']
+
+    final_df.columns = cols
+
+    final_df.to_csv(csv_save_slug)
+    final_df.to_pickle(pickle_save_slug)
+
+    DEBUG = 12
 
 
 if __name__ == '__main__':
