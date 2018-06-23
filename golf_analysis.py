@@ -121,6 +121,7 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK'):
     c_string = expand_latex_c(num_cols)
     full_caption = caption + " " + yr
 
+    print()
     print("\\begin{table*}[h]")
     print(f"\\caption{{{caption}}}")
     print(f"\\label{{{label}}}")
@@ -136,11 +137,12 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK'):
     for index, row in df.iterrows():
         print("\\hline")
         for i in range(num_cols - 1):
-            print(f"{row[col_list[i]]} & ", end='')
+            print(f"{row[col_list[i]]:.1f} & ", end='')
 
-        print(f"{row[col_list[-1]]}\\\\")
+        print(f"{row[col_list[-1]]:.1f}\\\\")
     print("\\end{tabular}")
     print("\\end{table*}")
+    print()
 
 
 def get_descriptive_stats(main_df, prev_df):
