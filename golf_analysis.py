@@ -3,6 +3,7 @@
 Script for performing data analysis on the 2017 US Open Golf Tournament
 """
 
+import re
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -108,26 +109,30 @@ def plot_pairplot(df):
 def expand_latex_c(num_columns):
     base_string = '|'
     add_c_string = 'c|'
+    full_string = "|"
     for i in range(num_columns - 1):
-        add_c_string += add_c_string
+        full_string += add_c_string
 
-    return base_string + add_c_string
+    return full_string + add_c_string
 
 
-def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK'):
-    num_rows = df.shape[0]
+def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK', index_name="UNK"):
+    # Turn index into a column and re-order for display
+    df[index_name] = df.index
+    cols = df.columns.tolist()
+    cols.insert(0, cols.pop())
+    df = df[cols]
+
     num_cols = df.shape[1]
     col_list = df.columns
     c_string = expand_latex_c(num_cols)
     full_caption = caption + " " + yr
 
-    print()
-    print("\\begin{table*}[h]")
-    print(f"\\caption{{{caption}}}")
+    print("\n\\begin{table*}[h]")
+    print(f"\\caption{{{full_caption}}}")
     print(f"\\label{{{label}}}")
     print("\\centering")
-    print(f"\\begin{{tabular}}{{{c_string}}}")
-    print("\\hline")
+    print(f"\\begin{{tabular}}{{{c_string}}}\n\\hline")
     for j, col in enumerate(col_list):
         if j < num_cols - 1:
             print(f"{col} & ", end='')
@@ -137,35 +142,48 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK'):
     for index, row in df.iterrows():
         print("\\hline")
         for i in range(num_cols - 1):
-            print(f"{row[col_list[i]]:.1f} & ", end='')
+            if re.match("^\d+?\.\d+?$", str(row[col_list[i]])) is None:
+                print(f"{row[col_list[i]]} & ", end="")
+            else:
+                print(f"{row[col_list[i]]:.1f} & ", end='')
+        if re.match("^\d+?\.\d+?$", str(row[col_list[-1]])) is None:
+            print(f"{row[col_list[-1]]}")
+        else:
+            print(f"{row[col_list[-1]]:.1f}\\\\")
+    print("\\hline\n\\end{tabular}\n\\end{table*}\n")
 
-        print(f"{row[col_list[-1]]:.1f}\\\\")
-    print("\\end{tabular}")
-    print("\\end{table*}")
-    print()
+    # print("\\end{tabular}")
+    # print("\\end{table*}\n")
 
 
 def get_descriptive_stats(main_df, prev_df):
     #######################################################
     #         Get descriptive stats for main year         #
     #######################################################
+    df_list = [main_df, prev_df]
 
-    type_list = ['scores', 'putts', 'drive_dist']
-    rounds_scores_df, total_scores_series = get_round_df(main_df, 'scores')
-    rounds_putts_df, total_putts_series = get_round_df(main_df, 'putts')
-    rounds_drives_df, total_drives_series = get_round_df(main_df, 'drive_dist')
+    for index, df in enumerate(df_list):
+        type_list = ['scores', 'putts', 'drive_dist']
+        rounds_scores_df, total_scores_series = get_round_df(df, 'scores')
+        rounds_putts_df, total_putts_series = get_round_df(df, 'putts')
+        rounds_drives_df, total_drives_series = get_round_df(df, 'drive_dist')
 
-    main_score_means = rounds_scores_df.mean()
-    main_putt_means = rounds_putts_df.mean()
-    main_drive_means = rounds_drives_df.mean()
+        score_means = rounds_scores_df.mean()
+        putt_means = rounds_putts_df.mean()
+        drive_means = rounds_drives_df.mean()
 
-    main_score_summary_df = pd.DataFrame([rounds_scores_df.mean(), rounds_scores_df.var()])
-    main_score_summary_df = main_score_summary_df.transpose()
-    main_score_summary_df.index = ['Round 1', 'Round 2', 'Round 3', 'Round 4']
-    main_score_summary_df.index.name = 'Round'
-    main_score_summary_df.columns = ['Mean', 'Variance']
-
-    print_latex_table(main_score_summary_df, caption='Mean and Variance per Round', yr=YEAR)
+        score_summary_df = pd.DataFrame([rounds_scores_df.mean(), rounds_scores_df.var()])
+        score_summary_df = score_summary_df.transpose()
+        score_summary_df.index = ['Round 1', 'Round 2', 'Round 3', 'Round 4']
+        score_summary_df.index.name = 'Round'
+        score_summary_df.columns = ['Mean', 'Variance']
+        if index == 0:
+            curr_year = YEAR
+            curr_label = 'round_score_stat_' + YEAR
+        else:
+            curr_year = PREVIOUS_YEAR
+            curr_label = 'round_score_stat_' + PREVIOUS_YEAR
+        print_latex_table(score_summary_df, caption='Mean and Variance per Round', label=curr_label, yr=curr_year, index_name='Round')
 
     #######################################################
     #      Get descriptive stats for previous year        #
