@@ -158,7 +158,7 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK', index_name="
 
 def get_descriptive_stats(main_df, prev_df):
     #######################################################
-    #         Get descriptive stats for main year         #
+    #         Get descriptive stats for scores year       #
     #######################################################
     df_list = [main_df, prev_df]
 
@@ -185,9 +185,7 @@ def get_descriptive_stats(main_df, prev_df):
             curr_label = 'round_score_stat_' + PREVIOUS_YEAR
         print_latex_table(score_summary_df, caption='Mean and Variance per Round', label=curr_label, yr=curr_year, index_name='Round')
 
-    #######################################################
-    #      Get descriptive stats for previous year        #
-    #######################################################
+
 
 
 def main():
