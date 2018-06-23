@@ -1,35 +1,38 @@
 #!/usr/bin/env python3
 
+import numpy as np
 import pandas as pd
 import requests
 import urllib.request
 import json
 import time
-import argparse
+import argparse as ap
+from decimal import Decimal
 
-base_path = "data/current_data_files/"
-# tournament_id = '011' #(players)
-tournament_id = '026'  # (US Open)
-# tournament_id = '014' #(Masters)
+BASE_PATH = "data/current_data_files/golf/"
 
-year = '2017'
+parser = ap.ArgumentParser()
+parser.add_argument('tournament', nargs=1, help='name of tournament')
+parser.add_argument('year', nargs=1, help='YEAR of tournament')
+args = parser.parse_args()
 
-players_champ_slug = "Players_Championship"
-us_open_slug = "US_Open"
-masters_slug = "Masters"
+TOURNAMENT = args.tournament[0]
+YEAR = args.year[0]
 
-csv_save_slug = base_path + us_open_slug + "_" + year + ".csv"
-pickle_save_slug = base_path + us_open_slug + "_" + year + "_pickle"
+tournament_id_dict = {
+    'us_open': '026', 
+    'masters': '014',
+    'players_championship': '011'
+}
 
+players_champ_slug = "players_championship"
+us_open_slug = "us_open"
+masters_slug = "masters"
 
-# # fix element is stored as string
-# def feet_to_yards(element):
-#     if type(element) is float and element > 100:
-#         in_yards = element / 36
-#         return round(in_yards, 1)
-#     else:
-#         return element
-#
+CSV_SAVE_SLUG = BASE_PATH + TOURNAMENT + "_" + YEAR + ".csv"
+JUST_THE_CUT_SAVE_SLUG = BASE_PATH + TOURNAMENT + "_" + YEAR + "_made_cut" + ".csv"
+PICKLE_SAVE_SLUG = BASE_PATH + TOURNAMENT + "_" + YEAR + "_pickle"
+
 
 # Build dataframe containing pars and yards for each hole
 def get_tournament_info(json_data):
@@ -74,7 +77,6 @@ def get_player_field_ids(json_url):
         full_name = first_name + " " + last_name
 
         player_id_dict[ident] = full_name
-        fill = 12
 
     course_info_df = get_tournament_info(data)
     return player_id_dict, course_info_df
@@ -109,7 +111,7 @@ def build_player_df(json_url, player_id, player_name):
                 if shot['n'] == '1' and DUPLICATE is False:
                     DUPLICATE = True
                     drive_dist = shot['dist']
-                    drive_dist = str(float(drive_dist) / 36)
+                    drive_dist = float(drive_dist) / 36
                     player_drive_distance.append(drive_dist)
                 elif shot['n'] == score:
                     if not shot['putt']:
@@ -147,11 +149,11 @@ def build_player_df(json_url, player_id, player_name):
 
     hole_columns = list(range(1, 19))
     player_name_index = [player_name, player_name, player_name]
-    rounds_1 = ['round_1', 'round_1', 'round_1']
-    rounds_2 = ['round_2', 'round_2', 'round_2']
-    rounds_3 = ['round_3', 'round_3', 'round_3']
-    rounds_4 = ['round_4', 'round_4', 'round_4']
-    rounds_5 = ['round_5', 'round_5', 'round_5']
+    rounds_1 = ['1', '1', '1']
+    rounds_2 = ['2', '2', '2']
+    rounds_3 = ['3', '3', '3']
+    rounds_4 = ['4', '4', '4']
+    rounds_5 = ['5', '5', '5']
     desc = ['scores', 'drive_dist', 'putts']
 
     df_list = []
@@ -185,21 +187,65 @@ def build_player_df(json_url, player_id, player_name):
     return df
 
 
-def get_par_info()
+def get_par_info(json_url):
+    with urllib.request.urlopen(json_url) as url:
+        data = json.loads(url.read().decode())
+
+    pars_list = []
+    yards_1 = []
+    yards_2 = []
+    yards_3 = []
+    yards_4 = []
+    i = 1
+    for round in data['trn']['rnds']:
+        for course in round['courses']:
+            for hole in course['holes']:
+                if i == 1:
+                    pars_list.append(hole['par'])
+                    yards_1.append(hole['tee']['yards'])
+                elif i == 2:
+                    yards_2.append(hole['tee']['yards'])
+                elif i == 3:
+                    yards_3.append(hole['tee']['yards'])
+                elif i == 4:
+                    yards_4.append(hole['tee']['yards'])
+        i += 1
+
+    return list(map(int, pars_list))
+
+
+def golf_round(series):
+    rounded = series.astype(float).round(0)
+    return rounded
+
+
+def filter_cut(full_df):
+    par_row = full_df.loc[0]
+    made_round_4_df = full_df[full_df['Round'] == 4]
+    made_cut_player_list = made_round_4_df['Player'].unique().tolist()
+
+    df = full_df[full_df['Player'].isin(made_cut_player_list)]
+
+    df.loc[-1] = par_row
+    df.index = df.index + 1
+    df.sort_index(inplace=True)
+    return df
+
+
 def main():
     base_url_begin = "https://statdata.pgatour.com/r/"
-    url = base_url_begin + tournament_id + '/' + year + '/setup.json'
+    url = base_url_begin + tournament_id_dict[TOURNAMENT] + '/' + YEAR + '/setup.json'
     tournament_player_ids_dict, course_df = get_player_field_ids(url)
 
     for i, p_id in enumerate(tournament_player_ids_dict.keys()):
         if i == 0:
             player_name = tournament_player_ids_dict[p_id]
-            player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
+            player_json_url = base_url_begin + tournament_id_dict[TOURNAMENT] + '/' + YEAR + '/scorecards/' + \
                               p_id + '.json'
             base_df = build_player_df(player_json_url, p_id, player_name)
         else:
             player_name = tournament_player_ids_dict[p_id]
-            player_json_url = base_url_begin + tournament_id + '/' + year + '/scorecards/' + \
+            player_json_url = base_url_begin + tournament_id_dict[TOURNAMENT] + '/' + YEAR + '/scorecards/' + \
                               p_id + '.json'
             new_df = build_player_df(player_json_url, p_id, player_name)
             base_df = base_df.append(new_df)
@@ -210,13 +256,21 @@ def main():
             'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
     base_df.columns = cols
 
-    # base_df.to_csv(csv_save_slug)
-    base_df.to_pickle('working_pickle')
+    # base_df.to_csv(CSV_SAVE_SLUG)
+    # base_df.to_pickle('working_pickle')
 
-    base_df = pd.read_pickle('working_pickle')
+    # base_df = pd.read_pickle('working_pickle')
 
-    # add totals columns
+    # Get par info
+    pars_list = ['Par', '0', 'Par']
+    look = get_par_info(url)
+    pars_list.extend(look)
+
+    # add par to dataframe
+    base_df.loc[0] = pars_list  # adding a row
+    base_df.reset_index(drop=True, inplace=True)
     final_df = base_df
+
     all_holes = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
                  'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
     final_df['Total'] = final_df[all_holes].sum(axis=1)
@@ -231,15 +285,21 @@ def main():
     final_df['In'] = final_df['In'].map(lambda num: round(num, 1))
 
     # Reorder columns
-    cols = ['Player', 'Round', 'Type', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
-            'Out', 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'In', 'Total']
+    cols = ['Player', 'Round', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+            'Out', 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'In', 'Total', 'Type']
 
-    final_df.columns = cols
+    final_df = final_df[cols]
+    round_cols = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
+                  'Out', 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'In', 'Total']
+    final_df[round_cols] = final_df[round_cols].apply(golf_round)
+    final_df.to_csv(CSV_SAVE_SLUG)
+    final_df.to_pickle(PICKLE_SAVE_SLUG)
 
-    final_df.to_csv(csv_save_slug)
-    final_df.to_pickle(pickle_save_slug)
+    final_df = pd.read_pickle(PICKLE_SAVE_SLUG)
 
-    DEBUG = 12
+    # Create dataframe containing only golfers that made the cut
+    weekend_df = filter_cut(final_df)
+    weekend_df.to_csv(JUST_THE_CUT_SAVE_SLUG, index=False)
 
 
 if __name__ == '__main__':
