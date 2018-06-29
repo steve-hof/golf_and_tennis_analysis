@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
-from scipy import stats
+import scipy.stats as stats
 import numpy as np
 import os
 import argparse as ap
@@ -52,12 +52,11 @@ def plot_violin(df):
 
 
 def plot_putts_regression(df):
-
     DEBUG = 'Yankees Win!!!'
 
 
 def plot_heatmap(df):
-    sns.heatmap(df.corr(), cmap='coolwarm',annot=True)
+    sns.heatmap(df.corr(), cmap='coolwarm', annot=True)
     title_string = "Correlation between rounds " + YEAR + " " + title_dict[TOURNAMENT]
     plt.title(title_string)
     fig_save_path = BASE_SAVE_PATH_PLUS + "heatmap." + SAVE_FORMAT
@@ -106,6 +105,12 @@ def plot_pairplot(df):
     print("DEBUG")
 
 
+def is_numeric(element):
+
+
+    pass
+
+
 def expand_latex_c(num_columns):
     base_string = '|'
     add_c_string = 'c|'
@@ -116,8 +121,9 @@ def expand_latex_c(num_columns):
     return full_string + add_c_string
 
 
-def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK', index_name="UNK"):
+def print_latex_table(df_start, yr='UNK', caption='BLANK', label='BLANK', index_name="UNK"):
     # Turn index into a column and re-order for display
+    df = df_start
     df[index_name] = df.index
     cols = df.columns.tolist()
     cols.insert(0, cols.pop())
@@ -126,10 +132,10 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK', index_name="
     num_cols = df.shape[1]
     col_list = df.columns
     c_string = expand_latex_c(num_cols)
-    full_caption = caption + " " + yr
-
+    df.round(3)
+    print(f"Figure \\ref{{{label}}} shows {caption}")
     print("\n\\begin{table*}[h]")
-    print(f"\\caption{{{full_caption}}}")
+    print(f"\\caption{{{caption}}}")
     print(f"\\label{{{label}}}")
     print("\\centering")
     print(f"\\begin{{tabular}}{{{c_string}}}\n\\hline")
@@ -145,57 +151,147 @@ def print_latex_table(df, yr='UNK', caption='BLANK', label='BLANK', index_name="
             if re.match("^\d+?\.\d+?$", str(row[col_list[i]])) is None:
                 print(f"{row[col_list[i]]} & ", end="")
             else:
-                print(f"{row[col_list[i]]:.1f} & ", end='')
+                print(f"{row[col_list[i]]:.3f} & ", end='')
         if re.match("^\d+?\.\d+?$", str(row[col_list[-1]])) is None:
             print(f"{row[col_list[-1]]}")
         else:
-            print(f"{row[col_list[-1]]:.1f}\\\\")
+            print(f"{row[col_list[-1]]:.3f}\\\\")
     print("\\hline\n\\end{tabular}\n\\end{table*}\n")
-
-    # print("\\end{tabular}")
-    # print("\\end{table*}\n")
+    DEBUG = 12
 
 
 def get_descriptive_stats(main_df, prev_df):
-    #######################################################
-    #         Get descriptive stats for scores year       #
-    #######################################################
+    ##########################################################################
+    # Get descriptive stats for scores, putts and driving distance per year  #
+    ##########################################################################
     df_list = [main_df, prev_df]
 
     for index, df in enumerate(df_list):
-        type_list = ['scores', 'putts', 'drive_dist']
         rounds_scores_df, total_scores_series = get_round_df(df, 'scores')
         rounds_putts_df, total_putts_series = get_round_df(df, 'putts')
         rounds_drives_df, total_drives_series = get_round_df(df, 'drive_dist')
 
-        score_means = rounds_scores_df.mean()
-        putt_means = rounds_putts_df.mean()
-        drive_means = rounds_drives_df.mean()
+        type_list = ['scores', 'putts', 'drive_dist']
 
-        score_summary_df = pd.DataFrame([rounds_scores_df.mean(), rounds_scores_df.var()])
-        score_summary_df = score_summary_df.transpose()
-        score_summary_df.index = ['Round 1', 'Round 2', 'Round 3', 'Round 4']
-        score_summary_df.index.name = 'Round'
-        score_summary_df.columns = ['Mean', 'Variance']
-        if index == 0:
-            curr_year = YEAR
-            curr_label = 'round_score_stat_' + YEAR
-        else:
-            curr_year = PREVIOUS_YEAR
-            curr_label = 'round_score_stat_' + PREVIOUS_YEAR
-        print_latex_table(score_summary_df, caption='Mean and Variance per Round', label=curr_label, yr=curr_year, index_name='Round')
+        for kind in type_list:
+            if kind == 'scores':
+                summary_df = pd.DataFrame([rounds_scores_df.mean(), rounds_scores_df.var()])
+            elif kind == 'putts':
+                summary_df = pd.DataFrame([rounds_putts_df.mean(), rounds_putts_df.var()])
+            elif kind == 'drive_dist':
+                summary_df = pd.DataFrame([rounds_drives_df.mean(), rounds_drives_df.var()])
+
+            summary_df = summary_df.transpose()
+            summary_df.index = ['Round 1', 'Round 2', 'Round 3', 'Round 4']
+            summary_df.index.name = 'Round'
+            summary_df.columns = ['Mean', 'Variance']
+            if index == 0:
+                curr_year = YEAR
+            else:
+                curr_year = PREVIOUS_YEAR
+
+            if kind == 'scores':
+                curr_label = 'round_score_stat_' + curr_year
+                cap = 'Scores per Round for ' + title_dict[TOURNAMENT] + ' ' + curr_year
+            elif kind == 'putts':
+                curr_label = 'round_putt_stat_' + curr_year
+                cap = 'Putts per Round for ' + title_dict[TOURNAMENT] + ' ' + curr_year
+            else:
+                curr_label = 'round_drive_stat_' + curr_year
+                cap = 'Driving Distance (in yards) per Round for ' + title_dict[TOURNAMENT] + ' ' + curr_year
+
+            print_latex_table(summary_df, caption=cap, label=curr_label, yr=curr_year, index_name='Round')
 
 
+def test_significance(main_df, prev_df):
+    # Round 1 vs each other round
+
+    df_list = [main_df, prev_df]
+
+    for index, df in enumerate(df_list):
+        rounds_scores_df, total_scores_series = get_round_df(df, 'scores')
+        rounds_putts_df, total_putts_series = get_round_df(df, 'putts')
+        rounds_drives_df, total_drives_series = get_round_df(df, 'drive_dist')
+
+        type_list = ['scores', 'putts', 'drive_dist']
+
+        for kind in type_list:
+            sig = []
+            pval = []
+            if kind == 'scores':
+                base_list = rounds_scores_df['Round_1'].values
+                compare_list = rounds_scores_df.columns[1:]
+                for round in compare_list:
+                    sig.append(stats.ttest_ind(base_list, rounds_scores_df[round].values)[0])
+                    pval.append(stats.ttest_ind(base_list, rounds_scores_df[round].values)[1])
+
+                summary_df = pd.DataFrame([sig, pval])
+
+            elif kind == 'putts':
+                base_list = rounds_putts_df['Round_1'].values
+                compare_list = rounds_putts_df.columns[1:]
+                for round in compare_list:
+                    sig.append(stats.ttest_ind(base_list, rounds_putts_df[round].values)[0])
+                    pval.append(stats.ttest_ind(base_list, rounds_putts_df[round].values)[1])
+
+                summary_df = pd.DataFrame([sig, pval])
+
+            elif kind == 'drive_dist':
+                base_list = rounds_drives_df['Round_1'].values
+                compare_list = rounds_drives_df.columns[1:]
+                for round in compare_list:
+                    sig.append(stats.ttest_ind(base_list, rounds_drives_df[round].values)[0])
+                    pval.append(stats.ttest_ind(base_list, rounds_drives_df[round].values)[1])
+
+                summary_df = pd.DataFrame([sig, pval])
+
+            # index_list = ['Round 2', 'Round 3', 'Round 4']
+            # col_list = ['Test Statistic', 'P Value']
+
+            summary_df = summary_df.transpose()
+            summary_df.index = ['Round 2', 'Round 3', 'Round 4']
+            summary_df.index.name = 'Round'
+            summary_df.columns = ['Test Statistic', 'P Value']
+
+            # summary_df = pd.DataFrame(index=index_list, columns=col_list)
+            # summary_df[col_list[0]] = sig
+            # summary_df[col_list[1]] = pval
+
+            if index == 0:
+                curr_year = YEAR
+            else:
+                curr_year = PREVIOUS_YEAR
+
+            if kind == 'scores':
+                curr_label = 'sig_test_scores_' + curr_year
+                cap = "" + YEAR + " " + title_dict[
+                    TOURNAMENT] + ' Significance Testing for Scores (Round 1 vs Other Rounds)'
+            elif kind == 'putts':
+                curr_label = 'sig_test_putts_' + curr_year
+                cap = "" + YEAR + " " + title_dict[
+                    TOURNAMENT] + ' Significance Testing for Putts (Round 1 vs Other Rounds)'
+            else:
+                curr_label = 'round_drive_stat_' + curr_year
+                cap = "" + YEAR + " " + title_dict[
+                    TOURNAMENT] + ' Significance Testing for Driving Distance (Round 1 vs Other Rounds)'
+
+            print_latex_table(summary_df, caption=cap, label=curr_label, yr=curr_year, index_name='Round')
+
+    DEBUG = 256
 
 
 def main():
     ###################################################
     ####          Load and clean csv files         ####
     ###################################################
+
+    # We're concerned mostly with df and prev_year_df, full is just here
+    # in case we need it for something I haven't thought of yet
+
     full_df = pd.read_csv(ALL_PLAYERS_FILEPATH)
     df = pd.read_csv(MADE_CUT_FILEPATH)
     prev_year_df = pd.read_csv(PREV_YEAR_MADE_CUT_FILEPATH)
-    
+
     # clean and ensure no unnamed columns
     full_df.dropna(axis=0, inplace=True)
     full_df = full_df.loc[:, ~full_df.columns.str.contains('^Unnamed')]
@@ -213,11 +309,12 @@ def main():
     totals_df = pd.concat([total_scores_series, total_putts_series, total_drives_series], axis=1)
     totals_df.columns = ['scores', 'putts', 'drive_dist']
 
-    main_year_stats = get_descriptive_stats(df, prev_year_df)
+    # Logit / Probit
+    # main_year_stats = get_descriptive_stats(df, prev_year_df)
     # plot_pairplot(totals_df)
     # plot_violin(rounds_scores_df)
     # plot_heatmap(rounds_scores_df)
-
+    test_significance(df, prev_year_df)
     DEBUG = 12
 
 
