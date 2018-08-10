@@ -267,9 +267,18 @@ def main():
     pars_list.extend(look)
 
     # add par to dataframe
-    base_df.loc[0] = pars_list  # adding a row
-    base_df.reset_index(drop=True, inplace=True)
+    # base_df.loc[0] = pars_list  # adding a row
+    # base_df.reset_index(drop=True, inplace=True)
+    # final_df = base_df
+
+    base_df.loc[-1] = pars_list
+    base_df.index = base_df.index + 1
+    base_df.sort_index(inplace=True)
     final_df = base_df
+
+    # df.loc[-1] = ['45', 'Dean', 'male']  # adding a row
+    # df.index = df.index + 1  # shifting index
+    # df.sort_index(inplace=True)
 
     all_holes = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
                  'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18']
