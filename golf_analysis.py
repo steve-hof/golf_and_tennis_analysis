@@ -8,10 +8,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-import scipy.stats as stats
+from scipy import stats, linalg
 import numpy as np
+import sys
 from sklearn.linear_model import LogisticRegression
-import os
+
 import math
 
 import argparse as ap
@@ -385,7 +386,13 @@ def hole_to_hole(frame):
     expected.columns = ['birdie', 'par', 'bogey']
     expected.index = ['birdie', 'par', 'bogey']
 
+    # TODO: Give description of what is being measured in printouts below
+    print()
+    print("#############################################################")
+    print()
     chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
+    print("Null Hypothesis: The result on a previous hole has no effect on the result of the current hole")
+    print()
     print(f"Chi Squared Test Statistic = {chi_squared_stat}")
 
     crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
@@ -396,67 +403,68 @@ def hole_to_hole(frame):
     p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
                                  df=4)
     print(f"P value = {p_value}")
-
+    print()
+    # print("#############################################################")
     DEBUG = 28
 
 
-def gather_sequential_data(df):
-    scores_by_hole_df = df.drop(['In', 'Out'], axis=1)
-    pars = scores_by_hole_df.iloc[0, 2:20]
-    scores_by_hole_df = scores_by_hole_df[scores_by_hole_df['Type'] == 'scores']
-    relative_score_df = scores_by_hole_df.iloc[1:, 2:20].apply(lambda row: row - pars, axis=1)
-    relative_score_df = relative_score_df.reset_index(drop=True)
-    observed = np.zeros((3, 3))
-    score_values = relative_score_df.values
-
-    for x in range(score_values.shape[0] - 1):
-        for y in range(score_values.shape[1] - 2):
-            i = x + 1
-            j = y + 1
-            if score_values[x, y] < 0 and score_values[i, j] < 0:
-                observed[0, 0] = observed[0, 0] + 1
-            elif score_values[x, y] < 0 and score_values[i, j] == 0:
-                observed[0, 1] = observed[0, 1] + 1
-            elif score_values[x, y] < 0 and score_values[i, j] > 0:
-                observed[0, 2] = observed[0, 2] + 1
-
-            elif score_values[x, y] == 0 and score_values[i, j] < 0:
-                observed[1, 0] = observed[1, 0] + 1
-            elif score_values[x, y] == 0 and score_values[i, j] == 0:
-                observed[1, 1] = observed[1, 1] + 1
-            elif score_values[x, y] == 0 and score_values[i, j] > 0:
-                observed[1, 2] = observed[1, 2] + 1
-
-            elif score_values[x, y] > 0 and score_values[i, j] < 0:
-                observed[2, 0] = observed[2, 0] + 1
-            elif score_values[x, y] > 0 and score_values[i, j] == 0:
-                observed[2, 1] = observed[2, 1] + 1
-            elif score_values[x, y] > 0 and score_values[i, j] > 0:
-                observed[2, 2] = observed[2, 2] + 1
-
-    contingency_table = pd.DataFrame(data=observed, index=['Bog_plus', 'Par', 'Bird-'],
-                                     columns=['Bog_plus', 'Par', 'Bird-'])
-    contingency_table['Row_Totals'] = contingency_table.sum(axis=1)
-    contingency_table.loc['Col_Totals'] = contingency_table.sum(axis=0)
-
-    total = contingency_table.iloc[3, 3]
-    expected = np.outer(contingency_table['Row_Totals'][0:3], contingency_table.loc['Col_Totals'][0:3]) / total
-    expected = pd.DataFrame(data=expected, index=['Bog_plus', 'Par', 'Bird-'],
-                            columns=['Bog_plus', 'Par', 'Bird-'])
-
-    chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
-    print(f"Chi Squared Test Statistic = {chi_squared_stat}")
-
-    crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
-                          df=4)  # *
-
-    print(f"Critical value = {crit}")
-
-    p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
-                                 df=4)
-    print(f"P value = {p_value}")
-
-    DEBUG = 2
+# def gather_sequential_data(df):
+#     scores_by_hole_df = df.drop(['In', 'Out'], axis=1)
+#     pars = scores_by_hole_df.iloc[0, 2:20]
+#     scores_by_hole_df = scores_by_hole_df[scores_by_hole_df['Type'] == 'scores']
+#     relative_score_df = scores_by_hole_df.iloc[1:, 2:20].apply(lambda row: row - pars, axis=1)
+#     relative_score_df = relative_score_df.reset_index(drop=True)
+#     observed = np.zeros((3, 3))
+#     score_values = relative_score_df.values
+#
+#     for x in range(score_values.shape[0] - 1):
+#         for y in range(score_values.shape[1] - 2):
+#             i = x + 1
+#             j = y + 1
+#             if score_values[x, y] < 0 and score_values[i, j] < 0:
+#                 observed[0, 0] = observed[0, 0] + 1
+#             elif score_values[x, y] < 0 and score_values[i, j] == 0:
+#                 observed[0, 1] = observed[0, 1] + 1
+#             elif score_values[x, y] < 0 and score_values[i, j] > 0:
+#                 observed[0, 2] = observed[0, 2] + 1
+#
+#             elif score_values[x, y] == 0 and score_values[i, j] < 0:
+#                 observed[1, 0] = observed[1, 0] + 1
+#             elif score_values[x, y] == 0 and score_values[i, j] == 0:
+#                 observed[1, 1] = observed[1, 1] + 1
+#             elif score_values[x, y] == 0 and score_values[i, j] > 0:
+#                 observed[1, 2] = observed[1, 2] + 1
+#
+#             elif score_values[x, y] > 0 and score_values[i, j] < 0:
+#                 observed[2, 0] = observed[2, 0] + 1
+#             elif score_values[x, y] > 0 and score_values[i, j] == 0:
+#                 observed[2, 1] = observed[2, 1] + 1
+#             elif score_values[x, y] > 0 and score_values[i, j] > 0:
+#                 observed[2, 2] = observed[2, 2] + 1
+#
+#     contingency_table = pd.DataFrame(data=observed, index=['Bog_plus', 'Par', 'Bird-'],
+#                                      columns=['Bog_plus', 'Par', 'Bird-'])
+#     contingency_table['Row_Totals'] = contingency_table.sum(axis=1)
+#     contingency_table.loc['Col_Totals'] = contingency_table.sum(axis=0)
+#
+#     total = contingency_table.iloc[3, 3]
+#     expected = np.outer(contingency_table['Row_Totals'][0:3], contingency_table.loc['Col_Totals'][0:3]) / total
+#     expected = pd.DataFrame(data=expected, index=['Bog_plus', 'Par', 'Bird-'],
+#                             columns=['Bog_plus', 'Par', 'Bird-'])
+#
+#     chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
+#     print(f"Chi Squared Test Statistic = {chi_squared_stat}")
+#
+#     crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
+#                           df=4)  # *
+#
+#     print(f"Critical value = {crit}")
+#
+#     p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
+#                                  df=4)
+#     print(f"P value = {p_value}")
+#
+#     DEBUG = 2
 
 
 def hole_independence(df):
@@ -465,10 +473,186 @@ def hole_independence(df):
     scores_by_hole_df = scores_by_hole_df[scores_by_hole_df['Type'] == 'scores']
     scores_by_hole_df = scores_by_hole_df.drop('Round', axis=1)
     hole_average_df = scores_by_hole_df.groupby('Player').mean()
+    hole_average_df = hole_average_df.drop(['Total'], axis=1)
 
-    covariance_matrix = np.cov(hole_average_df.values)
+    covariance_matrix = hole_average_df.cov()
 
-    DEBUG = 25
+    LR, logLR, u, u_prime, p = sphericity(covariance_matrix, hole_average_df.shape[0])
+
+    degrees_freedom = (.5 * p) * (p + 1) - 1
+    crit_val = stats.chi2.ppf(q=.95, df=degrees_freedom)
+
+    # hole_average_df.loc['Sample_Variance'] = hole_average_df.apply(lambda col: stats.tvar(col), axis=0)
+    # hole_average_df.loc['Estimated_Variance (population)'] = hole_average_df.drop(['Sample_Variance'], axis=0).apply(
+    #     lambda col: np.var(col.values))
+
+    DEBUG = 2
+
+
+def sphericity(covariance_matrix, n):
+    p = covariance_matrix.shape[0]
+    det = linalg.det(covariance_matrix)
+    trace = np.trace(covariance_matrix)
+    LR = (det / (trace / p)**p) ** (n / 2)
+
+    log_LR = -2 * np.log(LR)
+
+    u = ((p ** p) * det) / (trace ** p)
+    eig_ps = (2 * p**2 + p + 2) / (6 * p)
+    u_prime = -((n - 1) - eig_ps) * np.log(u)
+
+    return LR, log_LR, u, u_prime, p
+
+
+def two_way_anova_practice():
+    sydney = np.array([75, 70, 50, 65, 80, 65])
+    brisbane = np.array([75, 70, 55, 60, 65, 65])
+    melbourne = np.array([90, 70, 75, 85, 80, 65])
+
+
+    DEBUG = 6
+
+
+def practice_question():
+    height = np.array([69, 74, 68, 70, 72, 67, 66, 70, 76, 68, 72, 79, 74, 67, 66, 71, 74, 75, 75, 76])
+    weight = np.array([153, 175, 155, 135, 172, 150, 115, 137, 200, 130, 140, 265, 185, 112, 140, 150, 165, 185, 210, 220])
+
+    height_mean = np.mean(height)
+    weight_mean = np.mean(weight)
+
+    dot_prod = np.dot(height, weight)
+    S_xy = (dot_prod - height.size * height_mean * weight_mean) / (height.size - 1)
+    DEBUG = 2
+
+
+def pq_2():
+    y1 = np.array([51, 27, 37, 42, 27, 43, 41, 38, 36, 26, 29])
+    y2 = np.array([36, 20, 22, 36, 18, 32, 22, 21, 23, 31, 20])
+    y3 = np.array([50, 26, 41, 32, 33, 43, 36, 31, 27, 31, 25])
+    y4 = np.array([35, 17, 37, 34, 14, 35, 25, 20, 25, 32, 26])
+    y5 = np.array([42, 27, 30, 27, 29, 40, 38, 16, 28, 36, 25])
+
+    word_df = pd.DataFrame({'y1': y1, 'y2': y2, 'y3': y3, 'y4': y4, 'y5': y5})
+    # y_means = word_df.mean(axis=0)
+    S = word_df.cov()
+
+    LR, logLR, u, u_prime, p = sphericity(S, word_df.shape[0])
+
+    degrees_freedom = (.5 * p) * (p + 1) - 1
+
+    crit_val = stats.chi2.ppf(q=.95, df=degrees_freedom)
+
+    DEGUG = 27
+
+
+def round_independence(frame):
+    # TODO: add titles to all plots
+    frame = frame[frame['Type'] == 'scores']
+    df = frame[['Player', 'Round', 'Total']]
+
+    scores_per_round_df = df.pivot(index='Player', columns='Round', values='Total')
+    scores_per_round_df.columns = ['Round_1', 'Round_2', 'Round_3', 'Round_4']
+    covariance_matrix = scores_per_round_df.cov()
+
+    LR, logLR, u, u_prime, p = sphericity(covariance_matrix, scores_per_round_df.shape[0])
+    degrees_freedom = (.5 * p) * (p + 1) - 1
+    crit_val = stats.chi2.ppf(q=.95, df=degrees_freedom)
+
+    eigval, eigvec = linalg.eig(covariance_matrix)
+    starting_round = scores_per_round_df.Round_1.values
+    starting_round = np.append(starting_round, scores_per_round_df.Round_2.values)
+    starting_round = np.append(starting_round, scores_per_round_df.Round_3.values)
+
+    next_round = scores_per_round_df.Round_2.values
+    next_round = np.append(next_round, scores_per_round_df.Round_3.values)
+    next_round = np.append(next_round, scores_per_round_df.Round_4.values)
+
+    round_to_round_df = pd.DataFrame({'Initial_Round': starting_round, 'Next_Round': next_round})
+    sns.scatterplot(x='Initial_Round', y='Next_Round', data=round_to_round_df)  # , hue='size', size='size')
+    plt.title("Scatter Plot showing Previous Round Score vs Next")
+    plt.show()
+
+    correlation_matrix = scores_per_round_df.corr()
+    sns.heatmap(correlation_matrix, cmap='coolwarm', annot=True)
+    plt.title("Correlation Matrix of Rounds (2018)")
+    plt.show()
+
+    # sns.jointplot(x='Round_1', y='Round_2', data=scores_per_round_df, kind='scatter', cmap='coolwarm')
+
+    sns.pairplot(scores_per_round_df, palette='coolwarm')
+    plt.title("Scatter Plots showing Relationships between round scores")
+    # g = sns.PairGrid(scores_per_round_df)
+    # g.map_diag(plt.hist)
+    # g.map_upper(plt.scatter)
+    # g.map_lower(sns.kdeplot)
+
+    plt.show()
+
+    DEBUG = 2
+
+
+def sum_square(V, mean):
+    ssq = 0
+    for v in V:
+        ssq += (v - mean) ** 2
+    return ssq
+
+    DEBUG = 28
+
+
+def anova(*args):
+    N = 0
+    num_columns = len(args)
+
+    # Calculate degrees of freedom
+    df_col = num_columns - 1
+    df_err = N - num_columns
+    df_tot = N - 1
+
+    # Calculate N and sum of all data points
+    total = 0
+    for arr in args:
+        for i in arr:
+            total += i
+            N += 1
+    correction_mean = total ** 2 / N
+
+    # Calculate sum of squares total (SS_Total)
+    SS_Total = 0
+    for arr in args:
+        SS_Total += np.dot(arr, arr)
+    SS_Total = SS_Total - correction_mean
+
+    # Calculate Treatment Sum of Squares (SST) (a treatment is a column)
+    SS_Treatment = 0
+    for arr in args:
+        SS_Treatment += ((np.sum(arr)) ** 2 / arr.size)
+    SS_Treatment = SS_Treatment - correction_mean
+
+    # Calculate Error Sum of Squares (SSE)
+    SS_Error = SS_Total - SS_Treatment
+
+    # Calculate Mean Squared of Treatment, Mean Squared Error, and F Ratio
+    MST = SS_Treatment / df_col
+    MSE = SS_Error / df_err
+    F = MST / MSE
+
+    DEBUG = 28
+    return MST, MSE, F
+
+
+def mucking_about():
+    year_1_scores = np.array([82, 93, 61, 74, 69, 70, 53])
+    year_2_scores = np.array([71, 62, 85, 94, 78, 66, 71])
+    year_3_scores = np.array([65, 73, 87, 91, 56, 78, 87])
+
+    one = np.array([6.9, 5.4, 5.8, 4.6, 4.0])
+    two = np.array([8.3, 6.8, 7.8, 9.2, 6.5])
+    three = np.array([8.0, 10.5, 8.1, 6.9, 9.3])
+
+    MSE, MST, F_ratio = anova(one, two, three)
+
+    DEBUG = 12
 
 
 def main():
@@ -478,7 +662,10 @@ def main():
 
     # We're concerned mostly with df and prev_year_df, full is just here
     # in case we need it for something I haven't thought of yet
-
+    # mucking_about()
+    # two_way_anova_practice()
+    # pq_2()
+    # practice_question()
     full_df = pd.read_csv(ALL_PLAYERS_FILEPATH)
     df = pd.read_csv(MADE_CUT_FILEPATH)
     prev_year_df = pd.read_csv(PREV_YEAR_MADE_CUT_FILEPATH)
@@ -507,10 +694,10 @@ def main():
     # test_round_significance(df, prev_year_df)
     # test_year_significance(df, prev_year_df)
 
-    # gather_sequential_data(df)
-    hole_to_hole(df)
+    # hole_to_hole(df)
     hole_independence(df)
-    plot_made_cut_regression(full_df)
+    round_independence(df)
+    # plot_made_cut_regression(full_df)
     DEBUG = 12
 
 
