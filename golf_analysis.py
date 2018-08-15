@@ -694,7 +694,7 @@ def main():
     # test_round_significance(df, prev_year_df)
     # test_year_significance(df, prev_year_df)
 
-    # hole_to_hole(df)
+    hole_to_hole(df)
     hole_independence(df)
     round_independence(df)
     # plot_made_cut_regression(full_df)
