@@ -408,65 +408,6 @@ def hole_to_hole(frame):
     DEBUG = 28
 
 
-# def gather_sequential_data(df):
-#     scores_by_hole_df = df.drop(['In', 'Out'], axis=1)
-#     pars = scores_by_hole_df.iloc[0, 2:20]
-#     scores_by_hole_df = scores_by_hole_df[scores_by_hole_df['Type'] == 'scores']
-#     relative_score_df = scores_by_hole_df.iloc[1:, 2:20].apply(lambda row: row - pars, axis=1)
-#     relative_score_df = relative_score_df.reset_index(drop=True)
-#     observed = np.zeros((3, 3))
-#     score_values = relative_score_df.values
-#
-#     for x in range(score_values.shape[0] - 1):
-#         for y in range(score_values.shape[1] - 2):
-#             i = x + 1
-#             j = y + 1
-#             if score_values[x, y] < 0 and score_values[i, j] < 0:
-#                 observed[0, 0] = observed[0, 0] + 1
-#             elif score_values[x, y] < 0 and score_values[i, j] == 0:
-#                 observed[0, 1] = observed[0, 1] + 1
-#             elif score_values[x, y] < 0 and score_values[i, j] > 0:
-#                 observed[0, 2] = observed[0, 2] + 1
-#
-#             elif score_values[x, y] == 0 and score_values[i, j] < 0:
-#                 observed[1, 0] = observed[1, 0] + 1
-#             elif score_values[x, y] == 0 and score_values[i, j] == 0:
-#                 observed[1, 1] = observed[1, 1] + 1
-#             elif score_values[x, y] == 0 and score_values[i, j] > 0:
-#                 observed[1, 2] = observed[1, 2] + 1
-#
-#             elif score_values[x, y] > 0 and score_values[i, j] < 0:
-#                 observed[2, 0] = observed[2, 0] + 1
-#             elif score_values[x, y] > 0 and score_values[i, j] == 0:
-#                 observed[2, 1] = observed[2, 1] + 1
-#             elif score_values[x, y] > 0 and score_values[i, j] > 0:
-#                 observed[2, 2] = observed[2, 2] + 1
-#
-#     contingency_table = pd.DataFrame(data=observed, index=['Bog_plus', 'Par', 'Bird-'],
-#                                      columns=['Bog_plus', 'Par', 'Bird-'])
-#     contingency_table['Row_Totals'] = contingency_table.sum(axis=1)
-#     contingency_table.loc['Col_Totals'] = contingency_table.sum(axis=0)
-#
-#     total = contingency_table.iloc[3, 3]
-#     expected = np.outer(contingency_table['Row_Totals'][0:3], contingency_table.loc['Col_Totals'][0:3]) / total
-#     expected = pd.DataFrame(data=expected, index=['Bog_plus', 'Par', 'Bird-'],
-#                             columns=['Bog_plus', 'Par', 'Bird-'])
-#
-#     chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
-#     print(f"Chi Squared Test Statistic = {chi_squared_stat}")
-#
-#     crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
-#                           df=4)  # *
-#
-#     print(f"Critical value = {crit}")
-#
-#     p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
-#                                  df=4)
-#     print(f"P value = {p_value}")
-#
-#     DEBUG = 2
-
-
 def hole_independence(df):
     scores_by_hole_df = df.drop(['In', 'Out'], axis=1)
     pars = scores_by_hole_df.iloc[0, 2:20]
