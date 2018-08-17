@@ -8,8 +8,9 @@ import json
 import time
 import argparse as ap
 from decimal import Decimal
+pd.options.mode.chained_assignment = None
 
-BASE_PATH = "data/current_data_files/golf/"
+BASE_PATH = "data/golf/"
 
 parser = ap.ArgumentParser()
 parser.add_argument('tournament', nargs=1, help='name of tournament')
@@ -22,7 +23,9 @@ YEAR = args.year[0]
 tournament_id_dict = {
     'us_open': '026', 
     'masters': '014',
-    'players_championship': '011'
+    'players_championship': '011',
+    'open': '100',
+    'pga_championship': '033'
 }
 
 players_champ_slug = "players_championship"
@@ -301,10 +304,10 @@ def main():
     round_cols = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'H8', 'H9',
                   'Out', 'H10', 'H11', 'H12', 'H13', 'H14', 'H15', 'H16', 'H17', 'H18', 'In', 'Total']
     final_df[round_cols] = final_df[round_cols].apply(golf_round)
-    final_df.to_csv(CSV_SAVE_SLUG)
-    final_df.to_pickle(PICKLE_SAVE_SLUG)
-
-    final_df = pd.read_pickle(PICKLE_SAVE_SLUG)
+    # final_df.to_csv(CSV_SAVE_SLUG)
+    # final_df.to_pickle(PICKLE_SAVE_SLUG)
+    #
+    # final_df = pd.read_pickle(PICKLE_SAVE_SLUG)
 
     # Create dataframe containing only golfers that made the cut
     weekend_df = filter_cut(final_df)

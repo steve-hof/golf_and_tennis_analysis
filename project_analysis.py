@@ -1,44 +1,61 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import os
+from pathlib2 import Path
 from scipy import stats, linalg
 import argparse as ap
 
-# TODO: add golf_scraper to this file
-# TODO: get rid of SettingWithCopy and other warnings
-# TODO: use os or sys (not sure) to make directory if one doesn't already exist for data and figures
-# TODO: use OS module to properly load and save
-# TODO: maybe just have one file and it scrapes the tournament if necessary?
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# TODO: create new file that aggregates tournaments and years of tournaments
+# TODO: set up argparse flag for whether to save plots
 
 
 class GolfModel:
 
     def __init__(self, tourn_name, tourn_year, functions):
-        self.BASE_DATA_PATH = 'data/golf/'
+        self.BASE_DATA_PATH = './data/golf/'
         self.BASE_SAVE_PATH = '../actual_project/figures/'
         self.SAVE_FORMAT = 'eps'
+
         self.tournament_name = tourn_name
         self.year = tourn_year
+
+        self.players_champ_slug = "players_championship"
+        self.us_open_slug = "us_open"
+        self.masters_slug = "masters"
+        self.open_slug = "open"
+        self.pga_champ_slug = "pga_championship"
 
         self.title_dict = {
             'us_open': 'US Open',
             'players_championship': 'Players Championship',
-            'masters': 'Masters'
+            'masters': 'Masters',
+            'open': 'Open Championship',
+            'pga_championship': 'PGA Championship'
         }
 
         if not os.path.exists(self.BASE_DATA_PATH):
             # create directory
             os.makedirs(self.BASE_DATA_PATH)
-            # TODO: scrape tournament
-
-        # TODO: check for file
+            print("The necessary directory does not exist. Creating directory now.")
 
         self.full_data_path = self.BASE_DATA_PATH + self.tournament_name + "_" + self.year + "_made_cut" + ".csv"
         self.full_save_path = self.BASE_SAVE_PATH + self.tournament_name + "_" + self.year + "_"
-        self.df = pd.read_csv(self.full_data_path)
         self.functions = functions
+
+        # check for file
+        csv_file = Path(self.full_data_path)
+        if csv_file.is_file():
+            # import csv file to dataframe
+            self.df = pd.read_csv(self.full_data_path)
+        else:
+            print("\nYou do not have the proper csv file.\n")
+            print(f"Attempting to scrape {self.year} {self.title_dict[self.tournament_name]}....................")
+            execution_string = f"python3 golf_scraper.py {self.tournament_name} {self.year}"
+            os.system(execution_string)
+            self.df = pd.read_csv(self.full_data_path)
 
     def fit(self, data_type='scores'):
         df = self.df
@@ -104,14 +121,12 @@ class GolfModel:
         # print()
         print()
 
-    # TODO: create function: _perform_hole_independence_test()
-
     def _perform_hole_independence_test(self):
         null_hypothesis = '?'
         df = self.df
         df = df.drop(['In', 'Out'], axis=1)
         # TODO: double check that the par scores are not being included here
-        pars = df.iloc[0, 2:20]
+        # pars = df.iloc[0, 2:20]
         df = df.drop('Round', axis=1)
         hole_average_df = df.groupby('Player').mean()
         hole_average_df = hole_average_df.drop(['Total'], axis=1)
@@ -119,8 +134,8 @@ class GolfModel:
         covariance_matrix = hole_average_df.cov()
         self._perform_sphericity_test(covariance_matrix, hole_average_df.shape[0],
                                       null_hypothesis)
-
-        return
+        self._create_correlation_heatmap(covariance_matrix, 'Holes')
+        # TODO: plot bar chart of variance per hole
 
     def _perform_round_independence_test(self):
         null_hypothesis = "The performance of the 4 rounds are independent"
@@ -132,8 +147,8 @@ class GolfModel:
 
         covariance_matrix = df.cov()
         self._perform_sphericity_test(covariance_matrix, df.shape[0], null_hypothesis)
-
-        return
+        self._create_correlation_heatmap(covariance_matrix, 'Rounds')
+        # TODO: plot bar chart of variance per round
 
     def _print_title(self):
         print()
@@ -143,6 +158,12 @@ class GolfModel:
         print()
 
         return
+
+    def _create_correlation_heatmap(self, corr_mat, corr_type):
+        title = f"Correlation between {corr_type} of {self.year} {self.title_dict[self.tournament_name]}"
+        sns.heatmap(corr_mat, cmap='coolwarm', annot=True)
+        plt.title(title)
+        plt.show()
 
     @staticmethod
     def _perform_sphericity_test(cov, n, null):
@@ -201,9 +222,6 @@ class GolfModel:
                                      df=4)
 
         return crit, chi_squared_stat, p_value
-
-    # TODO: create function: _perform_round_independence_test()
-    # TODO: create function: _perform_covariance_likelihood()
 
     @staticmethod
     def _p_value_decision(pval):
