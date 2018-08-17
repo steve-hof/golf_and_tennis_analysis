@@ -6,7 +6,9 @@ import os
 from scipy import stats, linalg
 import argparse as ap
 
-
+# TODO: add golf_scraper to this file
+# TODO: get rid of SettingWithCopy and other warnings
+# TODO: use os or sys (not sure) to make directory if one doesn't already exist for data and figures
 # TODO: use OS module to properly load and save
 # TODO: maybe just have one file and it scrapes the tournament if necessary?
 
@@ -14,7 +16,7 @@ import argparse as ap
 class GolfModel:
 
     def __init__(self, tourn_name, tourn_year, functions):
-        self.BASE_DATA_PATH = 'data/current_data_files/golf/'
+        self.BASE_DATA_PATH = 'data/golf/'
         self.BASE_SAVE_PATH = '../actual_project/figures/'
         self.SAVE_FORMAT = 'eps'
         self.tournament_name = tourn_name
@@ -25,6 +27,13 @@ class GolfModel:
             'players_championship': 'Players Championship',
             'masters': 'Masters'
         }
+
+        if not os.path.exists(self.BASE_DATA_PATH):
+            # create directory
+            os.makedirs(self.BASE_DATA_PATH)
+            # TODO: scrape tournament
+
+        # TODO: check for file
 
         self.full_data_path = self.BASE_DATA_PATH + self.tournament_name + "_" + self.year + "_made_cut" + ".csv"
         self.full_save_path = self.BASE_SAVE_PATH + self.tournament_name + "_" + self.year + "_"
@@ -55,7 +64,7 @@ class GolfModel:
 
     def _perform_hole_to_hole_analysis(self):
         score_dict = {6: 'bogey', 5: 'bogey', 4: 'bogey', 3: 'bogey', 2: 'bogey', 1: 'bogey', 0: 'par', -1: 'birdie',
-                      -2: 'birdie', -3: 'birdie'}
+                      -2: 'birdie', -3: 'birdie', -4: 'birdie'}
 
         df = self.df.drop(['In', 'Out'], axis=1)
         pars = df.iloc[0, 2:20]
@@ -79,20 +88,20 @@ class GolfModel:
         hypothesis_result = self._p_value_decision(p_val)
 
         print()
-        print("#########################################################################")
-        print("Null Hypothesis: The result on a previous hole has no effect on the result \n of the current hole")
-        print("#########################################################################")
-        print()
+        # print("#########################################################################")
+        print("NULL HYPOTHESIS: The result on a previous hole has no effect on the result \n of the current hole")
+        # print("#########################################################################")
+        # print()
         print(f"Critical value = {critical_value: .4f}")
         print(f"Chi Squared Test Statistic = {test_statistic: .4f}")
         print(f"P-Value = {p_val}")
-        print()
+        # print()
         # TODO: make the decision statement dependant on the p_value
 
-        print(hypothesis_result)
+        print(f"DECISION: {hypothesis_result}")
         # print()
-        print("#########################################################################")
-        print()
+        # print("#########################################################################")
+        # print()
         print()
 
     # TODO: create function: _perform_hole_independence_test()
@@ -130,7 +139,7 @@ class GolfModel:
         print()
         print()
         print("             The following results are for the                    ".upper())
-        print(f"                      {self.year}   {self.tournament_name.upper()}              ")
+        print(f"                      {self.year}   {self.title_dict[self.tournament_name].upper()}              ")
         print()
 
         return
@@ -151,11 +160,7 @@ class GolfModel:
         critical_value = stats.chi2.ppf(q=.95, df=degrees_freedom)
 
         print()
-        print("#########################################################################")
-        # print()
-        print(f"Null Hypothesis: {null}")
-        print("#########################################################################")
-        # print()
+        print(f"NULL HYPOTHESIS: {null}")
         if LR < 0.0000:
             print(f"Likelihood Ratio = {LR}")
         else:
@@ -164,14 +169,11 @@ class GolfModel:
               f" degrees of freedom = {critical_value: .4f}")
         print(f"-2ln(LR) = {log_LR: .4f}")
         print(f"U-Prime = {u_prime: .4f}")
-        print()
-        if u_prime > critical_value:
-            print("We have evidence to reject the null hypothesis")
-        else:
-            print("We fail to reject the null hypothesis")
         # print()
-        print("#########################################################################")
-        print()
+        if u_prime > critical_value:
+            print("DECISION: We have evidence to reject the null hypothesis")
+        else:
+            print("DECISION: We fail to reject the null hypothesis")
         print()
 
         return
