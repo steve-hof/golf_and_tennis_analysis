@@ -8,6 +8,7 @@ import argparse as ap
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 # TODO: create new file that aggregates tournaments and years of tournaments
 # TODO: set up argparse flag for whether to save plots
 
@@ -17,6 +18,7 @@ class GolfModel:
     def __init__(self, tourn_name, tourn_year, functions):
         self.BASE_DATA_PATH = './data/golf/'
         self.BASE_SAVE_PATH = '../actual_project/figures/'
+        self.PICKLE_PATH = './jupyter_notebooks/data_and_pickles/'
         self.SAVE_FORMAT = 'eps'
 
         self.tournament_name = tourn_name
@@ -39,11 +41,16 @@ class GolfModel:
         if not os.path.exists(self.BASE_DATA_PATH):
             # create directory
             os.makedirs(self.BASE_DATA_PATH)
-            print("The necessary directory does not exist. Creating directory now.")
+            print("The necessary data directory does not exist. Creating directory now.")
 
         self.full_data_path = self.BASE_DATA_PATH + self.tournament_name + "_" + self.year + "_made_cut" + ".csv"
         self.full_save_path = self.BASE_SAVE_PATH + self.tournament_name + "_" + self.year + "_"
         self.functions = functions
+
+        if not os.path.exists(self.PICKLE_PATH):
+            # create directory
+            os.makedirs(self.PICKLE_PATH)
+            print("The necessary pickle directory does not exist. Creating directory now.")
 
         # check for file
         csv_file = Path(self.full_data_path)
@@ -80,8 +87,9 @@ class GolfModel:
         return
 
     def _perform_hole_to_hole_analysis(self):
-        score_dict = {6: 'bogey', 5: 'bogey', 4: 'bogey', 3: 'bogey', 2: 'bogey', 1: 'bogey', 0: 'par', -1: 'birdie',
-                      -2: 'birdie', -3: 'birdie', -4: 'birdie'}
+        score_dict = {11: 'bogey', 10: 'bogey', 9: 'bogey', 8: 'bogey', 7: 'bogey', 6: 'bogey', 5: 'bogey', 4: 'bogey', 3: 'bogey',
+                      2: 'bogey', 1: 'bogey', 0: 'par', -1: 'birdie',
+                      -2: 'birdie', -3: 'birdie', -4: 'birdie', -5: 'birdie', -6: 'birdie'}
 
         df = self.df.drop(['In', 'Out'], axis=1)
         pars = df.iloc[0, 2:20]
@@ -122,20 +130,29 @@ class GolfModel:
         print()
 
     def _perform_hole_independence_test(self):
-        null_hypothesis = '?'
+        null_hypothesis = 'The performances of each of the 18 holes are indpendent from one another'
         df = self.df
         df = df.drop(['In', 'Out'], axis=1)
         # TODO: double check that the par scores are not being included here
-        # pars = df.iloc[0, 2:20]
         df = df.drop('Round', axis=1)
         hole_average_df = df.groupby('Player').mean()
         hole_average_df = hole_average_df.drop(['Total'], axis=1)
 
         covariance_matrix = hole_average_df.cov()
+
+        print("Covariance Matrix")
+        print(covariance_matrix.round(decimals=4).to_latex())
+        cov_path = self.PICKLE_PATH + 'hole_covariance_matrix_' + self.tournament_name + '_' + self.year
+        covariance_matrix.to_pickle(cov_path)
         self._perform_sphericity_test(covariance_matrix, hole_average_df.shape[0],
                                       null_hypothesis)
-        self._create_correlation_heatmap(covariance_matrix, 'Holes')
+
+        self._create_correlation_heatmap(hole_average_df.corr(), 'Holes')
         # TODO: plot bar chart of variance per hole
+
+        self._create_bar_plot(covariance_matrix.columns, covariance_matrix.values.diagonal(), measure='Variance',
+                              between='Hole',
+                              limit=0, ylim=(5, 10))
 
     def _perform_round_independence_test(self):
         null_hypothesis = "The performance of the 4 rounds are independent"
@@ -146,9 +163,20 @@ class GolfModel:
         df.columns = ['Round_1', 'Round_2', 'Round_3', 'Round_4']
 
         covariance_matrix = df.cov()
+        # cov_path = self.PICKLE_PATH + 'round_covariance_matrix_' + self.tournament_name + '_' + self.year
+        # covariance_matrix.to_pickle(cov_path)
+
+        # print("Covariance Matrix")
+        # print(covariance_matrix.to_latex())
+        print("Correlation Matrix")
+        print(df.corr().to_latex())
+
         self._perform_sphericity_test(covariance_matrix, df.shape[0], null_hypothesis)
-        self._create_correlation_heatmap(covariance_matrix, 'Rounds')
-        # TODO: plot bar chart of variance per round
+        self._create_correlation_heatmap(df.corr(), 'Rounds')
+
+        self._create_bar_plot(covariance_matrix.columns, covariance_matrix.values.diagonal(), measure='Variance',
+                              between='Round',
+                              limit=0, ylim=(5, 10))
 
     def _print_title(self):
         print()
@@ -161,9 +189,52 @@ class GolfModel:
 
     def _create_correlation_heatmap(self, corr_mat, corr_type):
         title = f"Correlation between {corr_type} of {self.year} {self.title_dict[self.tournament_name]}"
-        sns.heatmap(corr_mat, cmap='coolwarm', annot=True)
+        sns.heatmap(corr_mat, cmap='coolwarm', annot=False)
         plt.title(title)
-        plt.show()
+        save_path = self.BASE_SAVE_PATH + title.replace(' ', '_') + '.eps'
+        plt.title(title)
+        # plt.tight_layout()
+        plt.savefig(save_path, format='eps', dpi=1000)
+        # plt.show()
+
+        DEBUG = 12
+
+    def _create_bar_plot(self, x, y, measure, between, limit=0, ylim=(0, 0)):
+        title = f"{measure} of each {between} for {self.year} {self.title_dict[self.tournament_name]}"
+        sns.barplot(x=x, y=y, palette='coolwarm')
+        plt.title(title)
+        if limit == 1:
+            a = ylim[0]
+            b = ylim[1]
+            plt.ylim(a, b)
+        save_path = self.BASE_SAVE_PATH + title.replace(' ', '_') + '.eps'
+        plt.savefig(save_path, format='eps', dpi=500)
+        plt.tight_layout()
+        # plt.show()
+
+    @staticmethod
+    def _perform_chi_squared(samples):
+        full_table = pd.crosstab(samples.first_hole, samples.second_hole, margins=True)
+        num_cols = full_table.shape[0] - 1
+        n = full_table.iloc[num_cols, num_cols]
+
+        observed = full_table.iloc[0:num_cols, 0:num_cols]
+        expected = np.outer(full_table["All"][0:num_cols],
+                            full_table.loc["All"][0:num_cols]) / n
+
+        expected = pd.DataFrame(expected)
+        expected.columns = ['birdie', 'bogey', 'par']
+        expected.index = ['birdie', 'bogey', 'par']
+
+        # TODO: set up degrees of freedom to be dynamic
+        chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
+        crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
+                              df=4)
+
+        p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
+                                     df=4)
+
+        return crit, chi_squared_stat, p_value
 
     @staticmethod
     def _perform_sphericity_test(cov, n, null):
@@ -200,39 +271,15 @@ class GolfModel:
         return
 
     @staticmethod
-    def _perform_chi_squared(samples):
-        full_table = pd.crosstab(samples.first_hole, samples.second_hole, margins=True)
-        num_cols = full_table.shape[0] - 1
-        n = full_table.iloc[num_cols, num_cols]
-
-        observed = full_table.iloc[0:num_cols, 0:num_cols]
-        expected = np.outer(full_table["All"][0:num_cols],
-                            full_table.loc["All"][0:num_cols]) / n
-
-        expected = pd.DataFrame(expected)
-        expected.columns = ['birdie', 'bogey', 'par']
-        expected.index = ['birdie', 'bogey', 'par']
-
-        # TODO: set up degrees of freedom to be dynamic
-        chi_squared_stat = (((observed - expected) ** 2) / expected).sum().sum()
-        crit = stats.chi2.ppf(q=0.95,  # Find the critical value for 95% confidence*
-                              df=4)
-
-        p_value = 1 - stats.chi2.cdf(x=chi_squared_stat,  # Find the p-value
-                                     df=4)
-
-        return crit, chi_squared_stat, p_value
-
-    @staticmethod
     def _p_value_decision(pval):
         decision = ""
         if pval > 0.1:
             decision = "There is no evidence against the null hypothesis"
-        elif pval <= 0.1:
+        elif 0.1 > pval >= 0.05:
             decision = "There is marginal evidence against the null hypothesis"
-        elif pval <= 0.05:
+        elif 0.05 > pval >= 0.1:
             decision = "There is significant evidence against the null hypothesis"
-        elif pval <= 0.01:
+        elif pval < 0.01:
             decision = "There is very significant evidence against the null hypothesis"
 
         return decision
